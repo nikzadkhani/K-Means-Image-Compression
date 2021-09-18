@@ -1,9 +1,7 @@
 import streamlit as st
-from sklearn.cluster import k_means
 from PIL import Image
 import numpy as np
-from pyinstrument import Profiler
-import plotly.graph_objs as pgo
+import plotly.graph_objs as go
 import time
 import code_text
 
@@ -74,7 +72,7 @@ def run_k_means(samples, initial_centroids, n_iter):
         current_centroids = get_centroids(samples, clusters, k)
         elapsed = time.time() - start_time
         if iteration > 0:
-            total_time = (elapsed * n_iter)/iteration
+            total_time = (elapsed * n_iter) / iteration
             time_left.text(
                 f'Time Elapsed: {elapsed:.2f} seconds  Time Remaining: {total_time - elapsed:.2f} seconds')
 
@@ -139,21 +137,21 @@ def plot_k_means_result(
     for pixel in centroids:
         centroid_colors.append('rgb' + str(tuple(pixel)))
 
-    raw_pixels = pgo.Scatter3d(
+    raw_pixels = go.Scatter3d(
         x=red, y=green, z=blue, customdata=sample_compressed_image,
-        mode='markers', marker=pgo.scatter3d.Marker(
+        mode='markers', marker=go.scatter3d.Marker(
             symbol='circle', size=2, color=sample_colors),
         name='Original Pixel',
         hovertemplate='<b>RGB</b>: %{x}, %{y}, %{z}<br>' +
                       '<b>Compressed</b>: %{customdata}<extra></extra>')
-    compressed_pixels = pgo.Scatter3d(
+    compressed_pixels = go.Scatter3d(
         x=red_center, y=green_center, z=blue_center, mode='markers',
-        marker=pgo.scatter3d.Marker(
+        marker=go.scatter3d.Marker(
             symbol='x', size=4, color=centroid_colors),
         name='Compressed Pixel',
         hovertemplate='<b>Compressed Color</b>: %{x}, %{y}, %{z}<extra></extra>')
 
-    fig = pgo.Figure()
+    fig = go.Figure()
     fig.add_trace(raw_pixels)
     fig.add_trace(compressed_pixels)
     fig.update_layout(scene=dict(
@@ -185,10 +183,10 @@ def naive_compression():
     og_column.image(img, caption='Original Image')
     img_array = np.array(img)
     num_bits_per_channel = 2
-    step = 256//num_bits_per_channel
+    step = 256 // num_bits_per_channel
     for i in range(num_bits_per_channel):
         idx = (img_array >= i * step) * (img_array < (i + 1) * step)
-        img_array[idx] = (i * step) + step//2
+        img_array[idx] = (i * step) + step // 2
 
     compressed = Image.fromarray(img_array)
     one_bit_column.image(compressed, caption='Compressed Image')
@@ -312,14 +310,16 @@ with k_means_container.form('k_means_form'):
         compress_image()
 
 if st.session_state.k_mean_og is not None and \
-    st.session_state.k_mean_compressed is not None and\
-    st.session_state.graph is not None:
-    _, k_means_og, _, k_means_img, _ = k_means_container.columns([1, 4, 1, 4, 1])
+        st.session_state.k_mean_compressed is not None and\
+        st.session_state.graph is not None:
+    _, k_means_og, _, k_means_img, _ = k_means_container.columns([
+                                                                 1, 4, 1, 4, 1])
     k_means_og.image(st.session_state.k_mean_og, caption='Original Image')
-    k_means_img.image(st.session_state.k_mean_compressed, caption='Compressed Image')
+    k_means_img.image(
+        st.session_state.k_mean_compressed,
+        caption='Compressed Image')
 
     k_means_container.plotly_chart(st.session_state.graph)
-
 
 
 k_means_container.markdown('An interesting thing to notice is that there is\
