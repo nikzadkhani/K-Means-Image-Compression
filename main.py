@@ -1,3 +1,4 @@
+from math import ceil
 import streamlit as st
 from sklearn.cluster import k_means
 from PIL import Image
@@ -101,15 +102,18 @@ def compress_image():
         image_array, initial_centroids, n_iter)
     final_centroids = centroid_history[-1]
 
+    st.session_state.color_key = labels
+
     final_image = final_centroids[labels]
     final_image = final_image.reshape(height, width, num_channels) * 255
-    final_image = final_image.astype(np.uint8)
+    final_image = st.session_state.image_array = final_image.astype(np.uint8)
     compressed_image = Image.fromarray(final_image)
 
     st.session_state.k_mean_compressed = compressed_image
 
     image_array = (image_array * 255).astype(np.uint8)
-    final_centroids = (final_centroids * 255).astype(np.uint8)
+    final_centroids = st.session_state.colors = (
+        final_centroids * 255).astype(np.uint8)
 
     plot_k_means_result(
         image_array, final_image.reshape(-1, 3),
@@ -185,13 +189,31 @@ def naive_compression():
     og_column.image(img, caption='Original Image')
     img_array = np.array(img)
     num_bits_per_channel = 2
-    step = 256//num_bits_per_channel
+    step = 255//num_bits_per_channel
     for i in range(num_bits_per_channel):
         idx = (img_array >= i * step) * (img_array < (i + 1) * step)
         img_array[idx] = (i * step) + step//2
 
     compressed = Image.fromarray(img_array)
     one_bit_column.image(compressed, caption='Compressed Image')
+
+
+def rgb_to_hex(rgb):
+    rgb = rgb.reshape(-1)
+    assert(rgb.shape[0] == 3)
+    return '#%02x%02x%02x' % tuple(rgb)
+
+
+def hex_to_rgb(value):
+    value = value.lstrip('#')
+    lv = len(value)
+    return tuple(int(value[i:i+lv//3], 16) for i in range(0, lv, lv//3))
+
+
+def render_new_color():
+    height, width, channels = st.session_state.image_array.shape
+    st.session_state.image_array = st.session_state.colors[st.session_state.color_key].reshape(
+        height, width, channels)
 
 
 st.markdown('# Image Compression using K-Means Clustering')
@@ -227,7 +249,7 @@ st.markdown('One way to reduce the image size is to use less values for the\
 #################################
 for key in [
     'naive_og', 'k_mean_og', 'naive_compressed',
-        'k_mean_compressed', 'graph']:
+        'k_mean_compressed', 'graph', 'colors', 'image_array', 'color_key']:
     if key not in st.session_state:
         st.session_state[key] = None
 
@@ -312,14 +334,15 @@ with k_means_container.form('k_means_form'):
         compress_image()
 
 if st.session_state.k_mean_og is not None and \
-    st.session_state.k_mean_compressed is not None and\
-    st.session_state.graph is not None:
-    _, k_means_og, _, k_means_img, _ = k_means_container.columns([1, 4, 1, 4, 1])
+        st.session_state.k_mean_compressed is not None and\
+        st.session_state.graph is not None:
+    _, k_means_og, _, k_means_img, _ = k_means_container.columns([
+                                                                 1, 4, 1, 4, 1])
     k_means_og.image(st.session_state.k_mean_og, caption='Original Image')
-    k_means_img.image(st.session_state.k_mean_compressed, caption='Compressed Image')
+    k_means_img.image(st.session_state.k_mean_compressed,
+                      caption='Compressed Image')
 
     k_means_container.plotly_chart(st.session_state.graph)
-
 
 
 k_means_container.markdown('An interesting thing to notice is that there is\
@@ -332,3 +355,40 @@ k_means_container.markdown('An interesting thing to notice is that there is\
 k_means_container.markdown('K means is a lot more expensive \
     than the naive method so it probably would be too wasteful in a really \
     lightweight application.')
+
+if st.session_state.colors is not None and \
+        st.session_state.image_array is not None:
+    k_means_container.markdown('Now that we know which areas should be similar\
+        color from K means, another application is to edit the colors\
+        to whatever you like. You can try it by clicking on the generated\
+        colors and changing their hex values with the color picker.')
+
+    k, channels = st.session_state.colors.shape
+    num_rows = ceil(k / 8)
+    rows = {}
+    for i in range(num_rows):
+        rows[i] = k_means_container.columns(8)
+
+    for i in range(k):
+        st.session_state.colors[i] = hex_to_rgb(
+            rows[i // 8][i % 8].color_picker(
+                '', rgb_to_hex(st.session_state.colors[i]),
+                key=f'color-picker-{i}', on_change=render_new_color))
+
+    render_new_color()
+
+    _, middle, _ = k_means_container.columns((1, 2, 1))
+    middle.image(Image.fromarray(
+        st.session_state.image_array), use_column_width=True)
+
+
+# ----------------------Hide Streamlit footer----------------------------
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# --------------------------------------------------------------------
