@@ -187,7 +187,7 @@ def naive_compression():
     og_column.image(img, caption='Original Image')
     img_array = np.array(img)
     num_bits_per_channel = 2
-    step = 255//num_bits_per_channel
+    step = 255 // num_bits_per_channel
     for i in range(num_bits_per_channel):
         idx = (img_array >= i * step) * (img_array < (i + 1) * step)
         img_array[idx] = (i * step) + step // 2
@@ -205,7 +205,7 @@ def rgb_to_hex(rgb):
 def hex_to_rgb(value):
     value = value.lstrip('#')
     lv = len(value)
-    return tuple(int(value[i:i+lv//3], 16) for i in range(0, lv, lv//3))
+    return tuple(int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
 
 
 def render_new_color():
@@ -386,6 +386,7 @@ hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
+            [class*="viewerBadge_container"] {visibility: hidden;}
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
